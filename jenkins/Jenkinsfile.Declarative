@@ -1,0 +1,91 @@
+def pomObject
+
+pipeline {
+    agent {
+        label "maven"
+    }
+    environment {
+        BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
+        SHORTREV = ''
+        VERSION = ''
+    }
+    parameters {
+        // e.g: passing -X in order to debug something during the build
+        string(name: 'MAVEN_OPTIONS', defaultValue: '-DskipTests=true')
+    } 
+    options {
+        skipDefaultCheckout true
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                container('jnlp') {
+                    dir('/checkout/simple-java-maven-app') {
+                        sh 'ls -ltra'
+                        sh 'git clone https://github.com/stevejr/simple-java-maven-app .'
+                        script {
+                            SHORTREV = sh (returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                        }
+                        sh 'ls -ltra'
+                        println "SHORTREV: ${SHORTREV}"
+                    }
+                }    
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                container('maven') {
+
+                    dir('/checkout/simple-java-maven-app') {
+                        println "SHORTREV: ${SHORTREV}"
+                        sh 'env'      
+                        script {
+                            def pom = readMavenPom file: 'pom.xml'            
+                            // Now you have access to raw version string in pom.version
+                            // Based on your versioning scheme, automatically calculate the next one            
+                            VERSION = pom.version.replaceAll('SNAPSHOT', SHORTREV).trim()
+                        }
+                        println "VERSION: ${VERSION}"
+                        // We never build a SNAPSHOT
+                        // We explicitly set versions.
+                        sh """
+                            mvn -B org.codehaus.mojo:versions-maven-plugin:2.5:set -DprocessAllModules -DnewVersion=${VERSION}  $MAVEN_OPTIONS
+                            mvn -B clean install $MAVEN_OPTIONS
+                            pwd && ls -ltra && ls -ltra ./target
+                        """ 
+                    }
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                container('alpine-utils') {
+                    dir('/checkout/simple-java-maven-app/jenkins') {
+                        sh 'env'
+                        sh 'pwd && ls -ltra && ls -ltra ../target'
+                        sh """
+                        cp -p ../target/my-app-${VERSION}.jar .
+                        docker build --no-cache=true --build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${SHORTREV} --build-arg BUILD_VERSION=${VERSION} --build-arg JAR_FILE=my-app-${VERSION}.jar -t stevejr/my-app:${VERSION} .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Test Docker Image') {
+            steps {
+                container('alpine-utils') {
+                    dir('/checkout/simple-java-maven-app') {
+                        sh """
+                        docker run stevejr/my-app:${VERSION}
+                        """
+                    }
+                }
+            }
+        }
+
+    }
+}
