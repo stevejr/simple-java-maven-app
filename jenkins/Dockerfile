@@ -6,6 +6,7 @@ LABEL maintainer="steve richards"
 ARG BUILD_DATE
 ARG VCS_REF
 ARG BUILD_VERSION
+ARG JAR_FILE
 
 # Labels.
 LABEL org.label-schema.schema-version="1.0" \
@@ -16,7 +17,7 @@ LABEL org.label-schema.schema-version="1.0" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.version=$BUILD_VERSION
 
-COPY my-app.jar /tmp
+COPY ${JAR_FILE} /tmp/my-app.jar
 
 ENTRYPOINT ["java"]
 
