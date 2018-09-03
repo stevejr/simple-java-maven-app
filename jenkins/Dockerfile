@@ -11,9 +11,9 @@ ARG JAR_FILE
 # Labels.
 LABEL org.label-schema.schema-version="1.0" \
       org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="stevejr/alpine-utils" \
-      org.label-schema.description="Alpine based image with added utilities" \
-      org.label-schema.vcs-url="https://github.com/stevejr/utils" \
+      org.label-schema.name="stevejr/simple-java-maven-app" \
+      org.label-schema.description="The repository contains a simple Java application " \
+      org.label-schema.vcs-url="https://github.com/stevejr/simple-java-maven-app" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.version=$BUILD_VERSION
 

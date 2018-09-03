@@ -5,6 +5,7 @@ pipeline {
         label "maven"
     }
     environment {
+        APP_NAME = "${env.JOB_NAME}"
         BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
         SHORTREV = ''
         VERSION = ''
@@ -67,8 +68,8 @@ pipeline {
                         sh 'env'
                         sh 'pwd && ls -ltra && ls -ltra ../target'
                         sh """
-                        cp -p ../target/my-app-${VERSION}.jar .
-                        docker build --no-cache=true --build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${SHORTREV} --build-arg BUILD_VERSION=${VERSION} --build-arg JAR_FILE=my-app-${VERSION}.jar -t stevejr/my-app:${VERSION} .
+                        cp -p ../target/my-app-${VERSION}.jar ${APP_NAME}-${VERSION}.jar
+                        docker build --no-cache=true --build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${SHORTREV} --build-arg BUILD_VERSION=${VERSION} --build-arg JAR_FILE=${APP_NAME}-${VERSION}.jar -t ${APP_NAME}:${VERSION} .
                         """
                     }
                 }
