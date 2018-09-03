@@ -7,13 +7,10 @@ pipeline {
     environment {
         APP_NAME = "${env.JOB_NAME}"
         BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
+        MAVEN_OPTIONS = '-DskipTests=true'
         SHORTREV = ''
         VERSION = ''
     }
-    parameters {
-        // e.g: passing -X in order to debug something during the build
-        string(name: 'MAVEN_OPTIONS', defaultValue: '-DskipTests=true')
-    } 
     options {
         skipDefaultCheckout true
     }
@@ -81,7 +78,7 @@ pipeline {
                 container('alpine-utils') {
                     dir('/checkout/simple-java-maven-app') {
                         sh """
-                        docker run stevejr/my-app:${VERSION}
+                        docker run ${APP_NAME}:${VERSION}
                         """
                     }
                 }
