@@ -8,6 +8,7 @@ pipeline {
         APP_NAME = "${env.JOB_NAME}"
         BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
         MAVEN_OPTIONS = '-DskipTests=true'
+        REGISTRY_URL = "https://${DTR_REGISTRY}"
         SHORTREV = ''
         VERSION = ''
     }
@@ -91,7 +92,8 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'jenkins', passwordVariable: 'REGISTRY_PASS', usernameVariable: 'REGISTRY_USER')]) {
                         sh """
                         docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL}
-                        docker push ${REGISTRY_URL}/${REGISTRY_USER}/${APP_NAME}:${VERSION}
+                        docker image tag ${APP_NAME}:${VERSION} ${DTR_REGISTRY}/jenkins/${APP_NAME}:${VERSION}
+                        docker image push ${DTR_REGISTRY}/${REGISTRY_USER}/${APP_NAME}:${VERSION}
                         """                        
                     }
                 }
