@@ -20,6 +20,7 @@ pipeline {
             steps {
                 container('jnlp') {
                     withCredentials([[$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
+                        [$class: 'FileBinding', credentialsId: 'dct_repo_key_prod', variable: 'REPOSITORY_SIGNING_KEY_PROD'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
                         dir("/checkout/.docker/tls/${DTR_REGISTRY}") {
                             sh 'cp -p "$DTR_CA_CRT" ca.crt'
@@ -27,6 +28,7 @@ pipeline {
                         }
                         dir('/checkout/.docker/trust/private') {
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY" .'
+                            sh 'cp -p "$REPOSITORY_SIGNING_KEY_PROD" .'
                         }
                     }   
                 }
