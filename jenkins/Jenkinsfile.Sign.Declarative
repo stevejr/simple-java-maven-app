@@ -123,6 +123,7 @@ spec:
                             sh """
                                 docker ${DOCKER_OPTS} image tag ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                 docker ${DOCKER_OPTS} image push ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
+                                docker ${DOCKER_OPTS} trust inspect --pretty ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                             """
                         }
                     }
