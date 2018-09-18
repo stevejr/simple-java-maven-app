@@ -1,9 +1,86 @@
 def pomObject
+def podLabel = "worker-${UUID.randomUUID().toString()}"
 
 pipeline {
-    agent {
-        label "maven"
+    agent{
+        kubernetes {
+            label podLabel
+            cloud 'kubernetes'
+            defaultContainer 'jnlp'
+            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: simple-java-maven-app
+spec:
+  containers:
+  #Java agent, test executor
+  - name: jnlp
+    image: jenkins/jnlp-slave:alpine
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - umask 0000; jenkins-slave
+    resources:
+      limits:
+        memory: 512Mi
+    workingDir: /home/jenkins
+    env:
+    - name: JNLP_MAX_HEAP_UPPER_BOUND_MB
+      value: 64
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  #maven
+  - name: maven
+    image: maven:3.3.9-jdk-8-alpine
+    tty: true
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - cat
+    resources:
+      limits:
+        memory: 256Mi
+    workingDir: /home/jenkins
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  #alpine-utils
+  - name: alpine-utils
+    image: stevejr/alpine-utils:1.0
+    tty: true
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - cat
+    resources:
+      limits:
+        memory: 256Mi
+    workingDir: /home/jenkins
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  volumes:
+  - name: checkout
+    emptyDir: {}
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+'''
+        }
     }
+
     environment {
         APP_NAME = "${env.JOB_NAME}"
         BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
@@ -20,7 +97,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                container('jnlp') {
+                container('alpine-utils') {
                     dir('/checkout/simple-java-maven-app') {
                         sh 'ls -ltra'
                         sh 'git clone https://github.com/stevejr/simple-java-maven-app .'
@@ -30,20 +107,20 @@ pipeline {
                         sh 'ls -ltra'
                         println "SHORTREV: ${SHORTREV}"
                     }
-                }    
+                }
             }
         }
-        
+
         stage('Build') {
             steps {
                 container('maven') {
 
                     dir('/checkout/simple-java-maven-app') {
-                        sh 'env'      
+                        sh 'env'
                         script {
-                            def pom = readMavenPom file: 'pom.xml'            
+                            def pom = readMavenPom file: 'pom.xml'
                             // Now you have access to raw version string in pom.version
-                            // Based on your versioning scheme, automatically calculate the next one            
+                            // Based on your versioning scheme, automatically calculate the next one
                             VERSION = pom.version.replaceAll('SNAPSHOT', "${SHORTREV}-${env.BUILD_NUMBER}").trim()
                             TAG = VERSION
                         }
@@ -56,12 +133,12 @@ pipeline {
                             mvn -B org.codehaus.mojo:versions-maven-plugin:2.5:set -DprocessAllModules -DnewVersion=${VERSION}  $MAVEN_OPTIONS
                             mvn -B clean install $MAVEN_OPTIONS
                             pwd && ls -ltra && ls -ltra ./target
-                        """ 
+                        """
                     }
                 }
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 container('alpine-utils') {
@@ -97,7 +174,7 @@ pipeline {
                         docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL}
                         docker image tag ${APP_NAME}:${TAG} ${DTR_REGISTRY}/jenkins/${APP_NAME}:${TAG}
                         docker image push ${DTR_REGISTRY}/${REGISTRY_USER}/${APP_NAME}:${TAG}
-                        """                        
+                        """
                     }
                 }
             }
