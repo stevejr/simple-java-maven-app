@@ -1,11 +1,70 @@
-import groovy.json.JsonSlurperClassic 
+import groovy.json.JsonSlurperClassic
 def payload = new groovy.json.JsonSlurperClassic().parseText(requestPayload)
 
+def podLabel = "worker-${UUID.randomUUID().toString()}"
+
 pipeline {
-    agent {
-        label "maven"
+    agent{
+        kubernetes {
+            label podLabel
+            cloud 'kubernetes'
+            defaultContainer 'jnlp'
+            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: simple-java-maven-app
+spec:
+  containers:
+  #Java agent, test executor
+  - name: jnlp
+    image: jenkins/jnlp-slave:alpine
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - umask 0000; jenkins-slave
+    resources:
+      limits:
+        memory: 512Mi
+    workingDir: /home/jenkins
+    env:
+    - name: JNLP_MAX_HEAP_UPPER_BOUND_MB
+      value: 64
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  #alpine-utils
+  - name: alpine-utils
+    image: stevejr/alpine-utils:1.0
+    tty: true
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - cat
+    resources:
+      limits:
+        memory: 256Mi
+    workingDir: /home/jenkins
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  volumes:
+  - name: checkout
+    emptyDir: {}
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+'''
+        }
     }
-    
+
     environment {
         DOCKER_OPTS = "--config /checkout/.docker"
         REGISTRY_URL = "https://${DTR_REGISTRY}"
@@ -18,7 +77,7 @@ pipeline {
     stages {
         stage('Setup Docker Config') {
             steps {
-                container('jnlp') {
+                container('alpine-utils') {
                     withCredentials([[$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
                         [$class: 'FileBinding', credentialsId: 'dct_repo_key_prod', variable: 'REPOSITORY_SIGNING_KEY_PROD'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
@@ -30,7 +89,7 @@ pipeline {
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY" .'
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY_PROD" .'
                         }
-                    }   
+                    }
                 }
             }
         }
@@ -57,7 +116,7 @@ pipeline {
                         [$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT'],
                         [$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkins', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS']]) {
-                        
+
                         withEnv(["DOCKER_CONTENT_TRUST=1",
                             "DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=$ROOT_SIGNING_PASSPHRASE",
                             "DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$REPOSITORY_SIGNING_PASSPHRASE"]) {
@@ -65,7 +124,7 @@ pipeline {
                                 docker ${DOCKER_OPTS} image tag ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                 docker ${DOCKER_OPTS} image push ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                             """
-                        }    
+                        }
                     }
                 }
             }
