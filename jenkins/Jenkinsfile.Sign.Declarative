@@ -97,6 +97,7 @@ spec:
                             sh """
                                 docker ${DOCKER_OPTS} trust signer add --key cert.pem jenkins ${DTR_REGISTRY}/${TARGET_IMAGE}
                             """
+                        }
                     }
                 }
             }
