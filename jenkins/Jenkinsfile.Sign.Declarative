@@ -80,6 +80,8 @@ spec:
                 container('alpine-utils') {
                     withCredentials([[$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
                         [$class: 'FileBinding', credentialsId: 'dct_repo_key_prod', variable: 'REPOSITORY_SIGNING_KEY_PROD'],
+                        [$class: 'FileBinding', credentialsId: 'dct_signing_key', variable: 'DCT_SIGNING_KEY'],
+                        [$class: 'FileBinding', credentialsId: 'dct_signing_cert', variable: 'DCT_SIGNING_CERT'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
                         dir("/checkout/.docker/tls/${DTR_REGISTRY}") {
                             sh 'cp -p "$DTR_CA_CRT" ca.crt'
@@ -89,6 +91,12 @@ spec:
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY" .'
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY_PROD" .'
                         }
+                        dir('/checkout/.docker') {
+                            sh 'cp -p "$DCT_SIGNING_KEY" key.pem'
+                            sh 'cp -p "$DCT_SIGNING_CERT" cert.pem'
+                            sh """
+                                docker ${DOCKER_OPTS} trust signer add --key cert.pem jenkins ${DTR_REGISTRY}/${TARGET_IMAGE}
+                            """
                     }
                 }
             }
@@ -121,6 +129,7 @@ spec:
                             "DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=$ROOT_SIGNING_PASSPHRASE",
                             "DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$REPOSITORY_SIGNING_PASSPHRASE"]) {
                             sh """
+                                docker ${DOCKER_OPTS} trust load /checkout/.docker/key.pem
                                 docker ${DOCKER_OPTS} image tag ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                 docker ${DOCKER_OPTS} image push ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                 docker ${DOCKER_OPTS} trust inspect --pretty ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
