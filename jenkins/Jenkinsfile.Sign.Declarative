@@ -128,7 +128,7 @@ spec:
                             "DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$REPOSITORY_SIGNING_PASSPHRASE"]) {
                             dir('/checkout/.docker') {
                                 sh """
-                                    docker ${DOCKER_OPTS} trust signer add --key cert.pem ${REGISTRY_USER} ${DTR_REGISTRY}/${TARGET_IMAGE}
+                                    docker ${DOCKER_OPTS} trust signer add --key cert.pem ci ${DTR_REGISTRY}/${TARGET_IMAGE}
                                     docker ${DOCKER_OPTS} trust key load key.pem
                                     docker ${DOCKER_OPTS} image tag ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                     docker ${DOCKER_OPTS} image push ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
