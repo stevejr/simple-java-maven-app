@@ -94,9 +94,6 @@ spec:
                         dir('/checkout/.docker') {
                             sh 'cp -p "$DCT_SIGNING_KEY" key.pem'
                             sh 'cp -p "$DCT_SIGNING_CERT" cert.pem'
-                            sh """
-                                docker ${DOCKER_OPTS} trust signer add --key cert.pem jenkins ${DTR_REGISTRY}/${TARGET_IMAGE}
-                            """
                         }
                     }
                 }
@@ -106,11 +103,14 @@ spec:
             steps {
                 container('alpine-utils') {
                     withCredentials([usernamePassword(credentialsId: 'jenkins', passwordVariable: 'REGISTRY_PASS', usernameVariable: 'REGISTRY_USER')]) {
-                        sh """
-                            docker version
-                            docker ${DOCKER_OPTS} login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL}
-                            docker ${DOCKER_OPTS} image pull ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}
-                        """
+                        dir('/checkout/.docker) {
+                            sh """
+                                docker version
+                                docker ${DOCKER_OPTS} login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL}
+                                docker ${DOCKER_OPTS} trust signer add --key cert.pem ${REGISTRY_USER} ${DTR_REGISTRY}/${TARGET_IMAGE}
+                                docker ${DOCKER_OPTS} image pull ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}
+                            """
+                        }
                     }
                 }
             }
