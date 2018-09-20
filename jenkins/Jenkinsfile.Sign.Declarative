@@ -126,7 +126,7 @@ spec:
                         withEnv(["DOCKER_CONTENT_TRUST=1",
                             "DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=$ROOT_SIGNING_PASSPHRASE",
                             "DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$REPOSITORY_SIGNING_PASSPHRASE"]) {
-                            dir('/checkout/.docker) {
+                            dir('/checkout/.docker') {
                                 sh """
                                     docker ${DOCKER_OPTS} trust signer add --key cert.pem ${REGISTRY_USER} ${DTR_REGISTRY}/${TARGET_IMAGE}
                                     docker ${DOCKER_OPTS} trust load key.pem
