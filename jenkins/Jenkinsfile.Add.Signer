@@ -1,0 +1,175 @@
+import groovy.json.JsonSlurperClassic
+import jenkins.model.*
+import com.cloudbees.plugins.credentials.*
+import com.cloudbees.plugins.credentials.domains.*
+import com.cloudbees.plugins.credentials.impl.*
+import org.jenkinsci.plugins.plaincredentials.*
+import org.jenkinsci.plugins.plaincredentials.impl.*
+import hudson.util.Secret
+import java.nio.file.*;
+
+def podLabel = "worker-${UUID.randomUUID().toString()}"
+def trustOutput = ""
+def trustFileContent = ""
+
+pipeline {
+    agent{
+        kubernetes {
+            label podLabel
+            cloud 'kubernetes'
+            defaultContainer 'jnlp'
+            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: simple-java-maven-app
+spec:
+  containers:
+  #Java agent, test executor
+  - name: jnlp
+    image: jenkins/jnlp-slave:alpine
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - umask 0000; jenkins-slave
+    resources:
+      limits:
+        memory: 512Mi
+    workingDir: /home/jenkins
+    env:
+    - name: JNLP_MAX_HEAP_UPPER_BOUND_MB
+      value: 64
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  #alpine-utils
+  - name: alpine-utils
+    image: stevejr/alpine-utils:1.0
+    tty: true
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - cat
+    resources:
+      limits:
+        memory: 256Mi
+    workingDir: /home/jenkins
+    volumeMounts:
+    - mountPath: '/checkout'
+      name: checkout
+    - mountPath: '/var/run/docker.sock'
+      name: docker-sock
+  volumes:
+  - name: checkout
+    emptyDir: {}
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+'''
+        }
+    }
+
+    environment {
+        DOCKER_OPTS = "--config /checkout/.docker"
+        REGISTRY_URL = "https://${DTR_REGISTRY}"
+    }
+
+    parameters {
+        // init script params
+        string(name: 'ROLE', defaultValue: 'ci', description: 'Delegated signing role')
+        string(name: 'REPO', defaultValue: 'devops', description: 'Repository Name')
+        string(name: 'IMAGE', defaultValue: 'dummy-repo', description: 'Image Name')
+    }
+
+    stages {
+        stage('Setup Docker Config') {
+            steps {
+                container('alpine-utils') {
+                    withCredentials([[$class: 'StringBinding', credentialsId: 'dct_root_passphrase', variable: 'ROOT_SIGNING_PASSPHRASE'],
+                        [$class: 'StringBinding', credentialsId: 'dct_repo_passphrase', variable: 'REPOSITORY_SIGNING_PASSPHRASE'],
+                        [$class: 'FileBinding', credentialsId: 'dct_signing_cert', variable: 'DCT_SIGNING_CERT'],
+                        [$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkins', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS'],
+                        [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
+
+                        dir("/checkout/.docker/tls/${DTR_REGISTRY}") {
+                            sh 'cp -p "$DTR_CA_CRT" ca.crt'
+                            sh 'chmod 600 ca.crt'
+                        }
+                        dir('/checkout/.docker') {
+                            sh 'cp -p "$DCT_SIGNING_CERT" cert.pem'
+                        }
+
+                        withEnv(["DOCKER_CONTENT_TRUST=1",
+                            "DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=$ROOT_SIGNING_PASSPHRASE",
+                            "DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$REPOSITORY_SIGNING_PASSPHRASE"]) {
+                            dir('/checkout/.docker') {
+                                sh """
+                                    docker ${DOCKER_OPTS} login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL} > /dev/null 2>&1
+                                    docker ${DOCKER_OPTS} trust signer add --key cert.pem ${params.ROLE} ${DTR_REGISTRY}/${params.REPO}/${params.IMAGE}"""
+                                script {
+                                    trustOutput = sh(returnStdout: true, script: """
+                                            docker ${DOCKER_OPTS} trust inspect ${DTR_REGISTRY}/${params.REPO}/${params.IMAGE}"""
+                                    ).trim()
+
+                                    def trustFilename = getRepositorySigningFileName(trustOutput)
+                                    trustFileContent = sh(returnStdout: true, script: """
+                                        cat /checkout/.docker/trust/private/${trustFilename}"""
+                                    ).trim()
+
+                                    addSigningCredentials(trustFilename, trustFileContent, "${params.REPO}", "${params.IMAGE}", "${params.ROLE}")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@NonCPS
+def getRepositorySigningFileName(String trustOutput) {
+    println "getRepositorySigningFileName:- Received trustOutput: ${trustOutput}"
+
+    // get signing key details
+    def  trustJSON = new groovy.json.JsonSlurperClassic().parseText(trustOutput)
+    def signingKeyFilename = ""
+
+    def adminstrativeKeys = trustJSON[0].AdminstrativeKeys
+
+    // iterate through the keys to retrieve the Repository ID
+    for (adminstrativeKey in adminstrativeKeys) {
+        if (("Repository").equals(adminstrativeKey.Name)) {
+            signingKeyFilename = "${adminstrativeKey.Keys[0].ID}.key"
+            println "signingKeyFilename: ${signingKeyFilename}"
+        }
+    }
+
+    return signingKeyFilename
+}
+@NonCPS
+def addSigningCredentials(String trustFilename, String trustFileContent, String repo, String image, String role) {
+    
+    try {
+        println "addSigningCredentials:- Received trustFilename: ${trustFilename}, trustFileContent: ${trustFileContent}, repo: ${repo}, image: ${image}"
+
+        // read in the key data into a SecretBtyes variable
+        def secretBytes = SecretBytes.fromBytes(trustFileContent.getBytes())
+
+        // create a new credential object
+        def credentials = new FileCredentialsImpl(CredentialsScope.GLOBAL, "REPOSITORY_SIGNING_KEY-${role}_${repo}_${image}", "Repository Signing Key file for role ${role} against ${repo}/${image}", "${trustFilename}", secretBytes)
+
+        // add the credential
+        SystemCredentialsProvider.instance.store.addCredentials(Domain.global(), credentials)
+
+        println "Created Credential"
+    } catch (e) {
+        println "Caught exeception ${e}"
+        throw e
+    }
+}
