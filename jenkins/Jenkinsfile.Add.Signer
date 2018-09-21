@@ -81,6 +81,7 @@ spec:
 
     parameters {
         // init script params
+        string(name: 'DCT_SIGNING_CERT_CREDENTIAL_ID', defaultValue: 'dct_signing_cert', description: 'Delegated signing role')
         string(name: 'ROLE', defaultValue: 'ci', description: 'Delegated signing role')
         string(name: 'REPO', defaultValue: 'devops', description: 'Repository Name')
         string(name: 'IMAGE', defaultValue: 'dummy-repo', description: 'Image Name')
@@ -92,7 +93,7 @@ spec:
                 container('alpine-utils') {
                     withCredentials([[$class: 'StringBinding', credentialsId: 'dct_root_passphrase', variable: 'ROOT_SIGNING_PASSPHRASE'],
                         [$class: 'StringBinding', credentialsId: 'dct_repo_passphrase', variable: 'REPOSITORY_SIGNING_PASSPHRASE'],
-                        [$class: 'FileBinding', credentialsId: 'dct_signing_cert', variable: 'DCT_SIGNING_CERT'],
+                        [$class: 'FileBinding', credentialsId: "${params.DCT_SIGNING_CERT_CREDENTIAL_ID}", variable: 'DCT_SIGNING_CERT'],
                         [$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkins', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
 
@@ -154,7 +155,7 @@ def getRepositorySigningFileName(String trustOutput) {
 }
 @NonCPS
 def addSigningCredentials(String trustFilename, String trustFileContent, String repo, String image, String role) {
-    
+
     try {
         println "addSigningCredentials:- Received trustFilename: ${trustFilename}, trustFileContent: ${trustFileContent}, repo: ${repo}, image: ${image}"
 
