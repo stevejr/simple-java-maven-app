@@ -34,9 +34,9 @@ public class AppTest
     {
         App.main(null);
         try {
-            assertEquals("Hello World from Jenkins World Nice 2018! Is everyone having a great time" + System.getProperty("line.separator"), outContent.toString());
+            assertEquals("Hello World! Is everyone having a good time?" + System.getProperty("line.separator"), outContent.toString());
         } catch (AssertionError e) {
-            fail("\"message\" is not \"Hello World from Jenkins World Nice 2018! Is everyone having a great time\"");
+            fail("\"message\" is not \"Hello World! Is everyone having a good time?\"");
         }
     }
 

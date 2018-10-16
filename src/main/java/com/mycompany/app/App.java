@@ -6,7 +6,7 @@ package com.mycompany.app;
 public class App
 {
 
-    private final String message = "Hello World from Jenkins World Nice 2018! Is everyone having a great time";
+    private final String message = "Hello World! Is everyone having a good time?";
 
     public App() {}
 
