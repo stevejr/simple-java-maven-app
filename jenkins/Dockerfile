@@ -1,4 +1,5 @@
-FROM java:8-jre-alpine
+#FROM java:8-jre-alpine
+FROM openjdk:11-jre-slim
 
 LABEL maintainer="steve richards"
 
