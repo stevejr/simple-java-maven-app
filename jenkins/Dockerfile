@@ -1,4 +1,5 @@
-FROM openjdk:11-jre-slim
+#FROM openjdk:11-jre-slim
+FROM openjdk:12-jdk-alpine
 
 LABEL maintainer="steve richards"
 
