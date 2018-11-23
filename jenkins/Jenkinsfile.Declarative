@@ -82,7 +82,7 @@ spec:
     }
 
     environment {
-        APP_NAME = "${env.JOB_NAME}"
+        APP_NAME = "${env.JOB_BASE_NAME}"
         BUILD_DATE = sh (returnStdout: true, script: "date -u +'%Y-%m-%dT%H:%M:%SZ'").trim()
         MAVEN_OPTIONS = '-DskipTests=true'
         REGISTRY_URL = "https://${DTR_REGISTRY}"
