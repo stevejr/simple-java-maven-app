@@ -69,6 +69,7 @@ spec:
 
     environment {
         DOCKER_OPTS = "--config /checkout/.docker"
+        PROMOTED_AT = "${payload.contents.promotedAt}"
         REGISTRY_URL = "https://${DTR_REGISTRY}"
         SOURCE_IMAGE = "${payload.contents.sourceRepository}"
         SOURCE_TAG = "${payload.contents.sourceTag}"
@@ -77,6 +78,16 @@ spec:
     }
 
     stages {
+        stage('Validate Webhook Contents') {
+            steps {
+                script {
+                    if ("${PROMOTED_AT}" == "0001-01-01T00:00:00Z") {
+                        currentBuild.result = 'SUCCESS'
+                        return
+                    }
+                }
+            }
+        }
         stage('Setup Docker Config') {
             steps {
                 container('alpine-utils') {
