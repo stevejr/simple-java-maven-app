@@ -159,7 +159,7 @@ spec:
                 container('alpine-utils') {
                     dir('/checkout/simple-java-maven-app') {
                         sh """
-                            docker run ${APP_NAME}:${TAG}
+                            docker container run --rm ${APP_NAME}:${TAG}
                         """
                     }
                 }
@@ -175,7 +175,7 @@ spec:
                             docker image tag ${APP_NAME}:${TAG} ${DTR_REGISTRY}/jenkins/${APP_NAME}:${TAG}
                             docker image push ${DTR_REGISTRY}/${REGISTRY_USER}/${APP_NAME}:${TAG}
                             docker image rm ${DTR_REGISTRY}/${REGISTRY_USER}/${APP_NAME}:${TAG}
-                            docker image rm ${APP_NAME}:${TAG}
+                            docker image rm ${APP_NAME}:${TAG} --force
                         """
                     }
                 }
