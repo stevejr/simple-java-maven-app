@@ -16,6 +16,8 @@ metadata:
   labels:
     app: simple-java-maven-app
 spec:
+  nodeSelector:
+    ucpnoderole: ci
   containers:
   #Java agent, test executor
   - name: jnlp
