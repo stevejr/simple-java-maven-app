@@ -79,7 +79,6 @@ spec:
             steps {
                 container('alpine-utils') {
                     withCredentials([[$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
-                        [$class: 'FileBinding', credentialsId: 'dct_repo_key_prod', variable: 'REPOSITORY_SIGNING_KEY_PROD'],
                         [$class: 'FileBinding', credentialsId: 'dct_signing_key', variable: 'DCT_SIGNING_KEY'],
                         [$class: 'FileBinding', credentialsId: 'dct_signing_cert', variable: 'DCT_SIGNING_CERT'],
                         [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT']]) {
@@ -89,11 +88,10 @@ spec:
                         }
                         dir('/checkout/.docker/trust/private') {
                             sh 'cp -p "$REPOSITORY_SIGNING_KEY" .'
-                            sh 'cp -p "$REPOSITORY_SIGNING_KEY_PROD" .'
                         }
                         dir('/checkout/.docker') {
                             sh 'cp -p "$DCT_SIGNING_KEY" key.pem'
-                            sh 'cp -p "$DCT_SIGNING_CERT" cert.pem'
+                            sh 'cp -p "$DCT_SIGNING_CERT" cert.pub'
                         }
                     }
                 }
@@ -118,9 +116,6 @@ spec:
                 container('alpine-utils') {
                     withCredentials([[$class: 'StringBinding', credentialsId: 'dct_root_passphrase', variable: 'ROOT_SIGNING_PASSPHRASE'],
                         [$class: 'StringBinding', credentialsId: 'dct_repo_passphrase', variable: 'REPOSITORY_SIGNING_PASSPHRASE'],
-                        [$class: 'StringBinding', credentialsId: 'dct_delegation_passphrase', variable: 'DELEGATION_PASSPHRASE'],
-                        [$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
-                        [$class: 'FileBinding', credentialsId: 'ca.crt', variable: 'DTR_CA_CRT'],
                         [$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkins', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS']]) {
 
                         withEnv(["DOCKER_CONTENT_TRUST=1",
@@ -130,7 +125,7 @@ spec:
                                 sh """
                                     docker ${DOCKER_OPTS} trust key load key.pem
                                     docker ${DOCKER_OPTS} image tag ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
-                                    docker ${DOCKER_OPTS} image push ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
+                                    docker ${DOCKER_OPTS} trust sign ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                     docker ${DOCKER_OPTS} trust inspect --pretty ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
                                     docker image rm ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}
                                     docker image rm ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed
