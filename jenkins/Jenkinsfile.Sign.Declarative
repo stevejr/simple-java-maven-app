@@ -41,7 +41,7 @@ spec:
       name: docker-sock
   #alpine-utils
   - name: alpine-utils
-    image: stevejr/alpine-utils:1.0
+    image: stevejr/alpine-utils:docker-18.09
     tty: true
     command:
     - /bin/sh
@@ -142,6 +142,12 @@ spec:
 
     post {
         always {
+            container('alpine-utils') {
+                sh """
+                    docker image rm ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG} --force
+                    docker image rm ${DTR_REGISTRY}/${TARGET_IMAGE}:${TARGET_TAG}-signed --force
+                """
+            }
             script {
                 def summaryString = """\
                 Promotion Summary:

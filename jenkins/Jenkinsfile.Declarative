@@ -39,7 +39,7 @@ spec:
       name: docker-sock
   #maven
   - name: maven
-    image: maven:3.3.9-jdk-8-alpine
+    image: maven:3.6.0-jdk-12-alpine
     tty: true
     command:
     - /bin/sh
@@ -57,7 +57,7 @@ spec:
       name: docker-sock
   #alpine-utils
   - name: alpine-utils
-    image: stevejr/alpine-utils:1.0
+    image: stevejr/alpine-utils:docker-18.09
     tty: true
     command:
     - /bin/sh
