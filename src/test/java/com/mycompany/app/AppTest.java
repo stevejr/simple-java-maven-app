@@ -34,9 +34,9 @@ public class AppTest
     {
         App.main(null);
         try {
-            assertEquals("Hello Jenkins World!" + System.getProperty("line.separator"), outContent.toString());
+            assertEquals("Hello DockerCon Barcelona 2018!" + System.getProperty("line.separator"), outContent.toString());
         } catch (AssertionError e) {
-            fail("\"message\" is not \"Hello Jenkins World!\"");
+            fail("\"message\" is not \"Hello DockerCon Barcelona 2018!\"");
         }
     }
 
