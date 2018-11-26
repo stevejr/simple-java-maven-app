@@ -1,5 +1,6 @@
 import groovy.json.JsonSlurperClassic
 def payload = new groovy.json.JsonSlurperClassic().parseText(requestPayload)
+def skipRemainingStages = false
 
 def podLabel = "worker-${UUID.randomUUID().toString()}"
 
@@ -81,14 +82,22 @@ spec:
         stage('Validate Webhook Contents') {
             steps {
                 script {
+                    println "The Promoted At time is: ${PROMOTED_AT}"
                     if ("${PROMOTED_AT}" == "0001-01-01T00:00:00Z") {
                         currentBuild.result = 'SUCCESS'
+                        println "Setting skipRemainingStages to true as promotedAt value is 0001-01-01T00:00:00Z"
+                        skipRemainingStages = true
                         return
                     }
                 }
             }
         }
         stage('Setup Docker Config') {
+            when {
+                expression {
+                    !skipRemainingStages
+                }
+            }
             steps {
                 container('alpine-utils') {
                     withCredentials([[$class: 'FileBinding', credentialsId: 'dct_repo_key', variable: 'REPOSITORY_SIGNING_KEY'],
@@ -111,6 +120,11 @@ spec:
             }
         }
         stage('Pull Image') {
+            when {
+                expression {
+                    !skipRemainingStages
+                }
+            }
             steps {
                 container('alpine-utils') {
                     withCredentials([usernamePassword(credentialsId: 'jenkins', passwordVariable: 'REGISTRY_PASS', usernameVariable: 'REGISTRY_USER')]) {
@@ -125,6 +139,11 @@ spec:
         }
 
         stage('Sign Image') {
+            when {
+                expression {
+                    !skipRemainingStages
+                }
+            }
             steps {
                 container('alpine-utils') {
                     withCredentials([[$class: 'StringBinding', credentialsId: 'dct_root_passphrase', variable: 'ROOT_SIGNING_PASSPHRASE'],
