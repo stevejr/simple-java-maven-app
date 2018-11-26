@@ -161,7 +161,7 @@ spec:
                 container('alpine-utils') {
                     dir('/checkout/simple-java-maven-app') {
                         sh """
-                            docker container run ${APP_NAME}:${TAG}
+                            docker container run --name ${APP_NAME}-${TAG} ${APP_NAME}:${TAG}
                         """
                     }
                 }
@@ -188,6 +188,7 @@ spec:
         always {
             container('alpine-utils') {
                 sh """
+                    docker container rm ${APP_NAME}-${TAG} --force
                     docker image rm ${APP_NAME}:${TAG} --force
                 """
             }
