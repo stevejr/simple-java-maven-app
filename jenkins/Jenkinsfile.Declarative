@@ -57,7 +57,7 @@ spec:
       name: docker-sock
   #alpine-utils
   - name: alpine-utils
-    image: stevejr/alpine-utils:docker-18.09
+    image: stevejr/alpine-utils:3.0
     tty: true
     command:
     - /bin/sh
