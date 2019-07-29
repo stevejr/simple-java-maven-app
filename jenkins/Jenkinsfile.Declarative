@@ -183,7 +183,7 @@ spec:
         stage('Push Docker Image') {
             steps {
                 container('alpine-utils') {
-                    withCredentials([usernamePassword(credentialsId: 'jenkins', passwordVariable: 'REGISTRY_PASS', usernameVariable: 'REGISTRY_USER')]) {
+                    withCredentials([usernamePassword(credentialsId: 'jenkins-ucp-dtr', passwordVariable: 'REGISTRY_PASS', usernameVariable: 'REGISTRY_USER')]) {
                         sh """
                             docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASS} ${REGISTRY_URL}
                             docker image tag ${APP_NAME}:${TAG} ${DTR_REGISTRY}/jenkins/${APP_NAME}:${TAG}
