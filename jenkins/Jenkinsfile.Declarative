@@ -25,7 +25,11 @@ spec:
     - umask 0000; jenkins-slave
     resources:
       limits:
-        memory: 512Mi
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 250Mi
     workingDir: /home/jenkins
     env:
     - name: JNLP_MAX_HEAP_UPPER_BOUND_MB
@@ -46,7 +50,11 @@ spec:
     - cat
     resources:
       limits:
-        memory: 256Mi
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 250Mi
     workingDir: /home/jenkins
     volumeMounts:
     - mountPath: '/checkout'
@@ -64,7 +72,11 @@ spec:
     - cat
     resources:
       limits:
-        memory: 256Mi
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 250Mi
     workingDir: /home/jenkins
     volumeMounts:
     - mountPath: '/checkout'
